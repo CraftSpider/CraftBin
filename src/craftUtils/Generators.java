@@ -41,6 +41,13 @@ public class Generators {
 		return primes;
 	}
 	
+	/**
+	 * 
+	 * @param length
+	 * @param start1
+	 * @param start2
+	 * @return ArrayList<Integer>
+	 */
 	public ArrayList<Integer> genFibonacci(int length, int start1, int start2) {
 		ArrayList<Integer> fibonacci = new ArrayList<Integer>();
 		int numFib = 0;
