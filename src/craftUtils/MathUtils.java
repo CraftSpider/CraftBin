@@ -22,13 +22,9 @@ public class MathUtils {
 	 * @return double
 	 */
 	public double roundPlace(double input, int place) {
-		System.out.println("Start: " + input);
 		input = input * Math.pow(10, -place);
-		System.out.println("Pow up: " + input);
-		input = Math.round(input);
-		System.out.println("Rounded: " + input);
+		input = Math.floor(input+.5);
 		input = input * Math.pow(10, place);
-		System.out.println("Pow down: " + input);
 		return input;
 	}
 	
