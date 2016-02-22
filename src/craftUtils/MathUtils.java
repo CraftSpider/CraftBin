@@ -28,4 +28,17 @@ public class MathUtils {
 		return input;
 	}
 	
+	/*public double divFraction() {
+		
+	}*/
+	
+	public double sumValues(double[] values) {
+		double total = 0;
+		
+		for (double value : values) {
+			total += value;
+		}
+		
+		return total;
+	}
 }
