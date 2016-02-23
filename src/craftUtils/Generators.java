@@ -13,9 +13,6 @@ public class Generators {
 		for (int value : gens.genFibonacci(10, 0, 1)) {
 			System.out.println(value);
 		}
-		
-		ArrayList<Integer> primes = gens.genPrimes(10);
-		
 	}
 	
 	/**

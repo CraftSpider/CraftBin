@@ -11,7 +11,7 @@ public class MathUtils {
 	
 	public static void main(String[] args) {
 		MathUtils math = new MathUtils();
-		System.out.println(math.roundPlace(123.456, 0));
+		System.out.println(math.nthRoot(5, 0));
 		System.out.println();
 	}
 	
@@ -40,5 +40,30 @@ public class MathUtils {
 		}
 		
 		return total;
+	}
+	
+	public double nthRoot(double input, int root) {
+		double oldEstimate = 0;
+		
+		for(int n = 1; n <= input; n++) {
+			if (n*n <= input) {
+				oldEstimate = n;
+			}
+		}
+		
+		double estimate = input/oldEstimate;
+		estimate = (estimate+oldEstimate)/2;
+		
+		for(int i=0;i<5;i++) {
+			oldEstimate = estimate;
+			estimate = input/oldEstimate;
+			estimate = (estimate+oldEstimate)/2;
+		}
+		
+		return estimate;
+	}
+	
+	public double euclideanNorm(double[] vector, int p) {
+		return (Double) null;
 	}
 }
