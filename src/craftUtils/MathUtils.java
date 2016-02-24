@@ -11,8 +11,8 @@ public class MathUtils {
 	
 	public static void main(String[] args) {
 		MathUtils math = new MathUtils();
-		System.out.println(math.nthRoot(5, 0));
-		System.out.println();
+		//System.out.println(math.nthRoot(5, 0));
+		System.out.println(math.nthPower(3, 2));
 	}
 	
 	/**
@@ -61,6 +61,13 @@ public class MathUtils {
 		}
 		
 		return estimate;
+	}
+	
+	public double nthPower(double input, int power) {
+		for (int i=1;i<power;i++) {
+			input *= input;
+		}
+		return input;
 	}
 	
 	public double euclideanNorm(double[] vector, int p) {
