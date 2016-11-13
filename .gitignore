@@ -1,0 +1,6 @@
+
+# Precompiled files
+
+*.pyc
+*.pyo
+__pycache__
