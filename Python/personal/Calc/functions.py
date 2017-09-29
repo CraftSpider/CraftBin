@@ -5,40 +5,58 @@
 """
 
 
-def add(orders, index):
-    result = orders[index - 1] + orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def add(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = 0
+    nums.push(N1 + N2)
 
 
-def subtract(orders, index):
-    result = orders[index - 1] - orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def subtract(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = 0
+    nums.push(N2 - N1)
 
 
-def multiply(orders, index):
-    result = orders[index - 1] * orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def multiply(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = 1
+    nums.push(N1 * N2)
 
 
-def divide(orders, index):
-    result = orders[index - 1] / orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def divide(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = 1
+    nums.push(N2 / N1)
 
 
-def exponent(orders, index):
-    result = orders[index - 1] ** orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def exponent(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = 1
+    nums.push(N1 ** N2)
 
 
-def equals(orders, index):
-    result = orders[index - 1] == orders[index + 1]
-    orders = orders[:index - 1] + [result] + orders[index + 2:]
-    return orders
+def equals(nums):
+    N1 = nums.pop()
+    try:
+        N2 = nums.pop()
+    except IndexError:
+        N2 = None
+    nums.push(N1 == N2)
 
 FUNCTIONS = {
     '+': add,
@@ -47,6 +65,15 @@ FUNCTIONS = {
     '/': divide,
     '^': exponent,
     '=': equals,
+    '(': True,
 }
 
-orderOfOps = ['^', ['*', '/'], ['+', '-'], '=']
+orderOfOps = {
+    '=': 0,
+    '+': 1,
+    '-': 1,
+    '*': 2,
+    '/': 2,
+    '^': 3,
+    '(': 100
+}  # ['^', ['*', '/'], ['+', '-'], '=']
