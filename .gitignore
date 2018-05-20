@@ -4,3 +4,10 @@
 *.pyc
 *.pyo
 __pycache__
+
+# Pycharm project
+*/.idea/
+
+# Data Files
+*.dat
+*.dump
