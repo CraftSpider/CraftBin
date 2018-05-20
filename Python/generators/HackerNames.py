@@ -13,16 +13,12 @@ corporate = ["corp", "inc", "squad", "force", "company", "LLC", "crew", "team", 
              "wreckers", "destroyers", "builders", "breakers", "saur"]
 
 
-def randomHackName(*times):
+def randomHackName(times=1):
     """
         Generates a name of format a-s-c, random animal, maybe a space, random corporate title.
     :return: New company name. Type: String.
     """
     out = []
-    if times != ():
-        times = times[0]
-    else:
-        times = 1
     while times > 0:
         name = ""
         name += animals[random.randint(0, len(animals)-1)]
@@ -34,5 +30,6 @@ def randomHackName(*times):
     if len(out) == 1:
         out = out[0]
     return out
+
 
 print(randomHackName(10))

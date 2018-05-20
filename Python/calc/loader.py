@@ -10,8 +10,9 @@ import os
 
 Modes = []
 FUNCTIONS = {}
-orderOfOps = {}
+order_of_ops = {}
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
 
 def init():
     for file in os.listdir(dir_path):
@@ -20,16 +21,17 @@ def init():
             if os.getcwd() == dir_path:
                 Modes.append(importlib.import_module(file[0]))
             else:
-                Modes.append(importlib.import_module("Calc."+file[0]))
+                Modes.append(importlib.import_module("calc."+str(file[0])))
 
     for item in Modes:
         for key in item.FUNCTIONS:
             FUNCTIONS[key] = item.FUNCTIONS[key]
-        for key in item.orderOfOps:
-            orderOfOps[key] = item.orderOfOps[key]
+        for key in item.order_of_ops:
+            order_of_ops[key] = item.order_of_ops[key]
+
 
 if __name__ == "__main__":
     init()
     print(Modes)
     print(FUNCTIONS)
-    print(orderOfOps)
+    print(order_of_ops)
