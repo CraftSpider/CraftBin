@@ -13,7 +13,7 @@ corporate = ["corp", "inc", "squad", "force", "company", "LLC", "crew", "team", 
              "wreckers", "destroyers", "builders", "breakers", "saur"]
 
 
-def randomHackName(times=1):
+def random_hack_name(times=1):
     """
         Generates a name of format a-s-c, random animal, maybe a space, random corporate title.
     :return: New company name. Type: String.
@@ -32,4 +32,4 @@ def randomHackName(times=1):
     return out
 
 
-print(randomHackName(10))
+print(random_hack_name(10))

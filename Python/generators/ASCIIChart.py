@@ -7,83 +7,89 @@
 from utils import file_readers as fr
 
 
-def make_chart(data, title="Data Table", bord="#"):
+def fix_data(data, meta):
     """
-        Generates and returns an ASCII list
-    :param title:
-    :param bord:
-    :param data:
-    :return:
+        Fixes input data in place for the chart function
+    :param data: list of lists of anything, no special guarantees
+    :param meta: calculated metadata to help with fixing
+    """
+    for row in data:
+        for index in range(len(row)):
+            if not isinstance(row[index], str):
+                row[index] = str(row[index])
+        if len(row) < meta["cols"]:
+            row += ["" for _ in range(meta["cols"] - len(row))]
+
+
+def build_meta(data, title):
+    """
+        Generate the number of rows and columns, minimum chart width, and minimum width of each column
+    :param data: input chart data, in list of lists form
+    :param title: title of the chart
+    :return: Dictionary of chart metadata
+    """
+    if title is None:
+        title = ""
+    out = dict()
+    out["cols"] = max_len(data)
+    out["rows"] = len(data)
+    out["width"] = len(title) + 4
+    out["col_maxes"] = [0 for _ in range(out["cols"])]
+
+    # determine real column maxes
+    for row in data:
+        for index in range(len(row)):
+            if len(row[index]) > out["col_maxes"][index]:
+                out["col_maxes"][index] = len(row[index])
+    out["col_maxes"] = [x + 2 for x in out["col_maxes"]]  # add padding to each column
+
+    # determine real table minimum width
+    data_width = sum(out["col_maxes"]) + out["cols"] + 1
+    if data_width > out["width"]:
+        out["width"] = data_width
+
+    print(out["col_maxes"])
+    return out
+
+
+def make_chart(data, title=None, bord="#"):  # TODO: add min_padding variable
+    """
+        Generates and returns an ASCII chart
+    :param title: Title of the chart, or None for no title
+    :param bord: Border character for the chart. Defaults to '#'
+    :param data: List of lists of strings for the chart data.
+    :return: Built ASCII chart
     """
     out = ""
 
-    # Determine the maximum width of the chart and the maximum length in each data field
-    maxWidth = len(title) + 4
-    maxVars = [0 for i in range(maxLen(data))]
-    maxCols = len(maxVars)
-    maxRows = len(data)
-    for i in data:
-        for j in range(len(i)):
-            if len(i[j]) > maxVars[j]:
-                maxVars[j] = len(i[j])
-        i = "   ".join(i)
-        if len(i) + 2 > maxWidth:
-            maxWidth = len(i) + 4
+    meta = build_meta(data, title)
 
-    # First line
-    out += bord*maxWidth + "\n"
+    fix_data(data, meta)
 
-    # Title Line
-    titleGap = int((maxWidth - (len(title) + 2)) / 2)
-    if titleGap*2 + len(title) + 2 != maxWidth:
-        out += bord + " "*titleGap + title + " "*(titleGap+1) + bord + "\n"
+    if title:
+        # Title Header:
+        #  First line
+        out += bord*meta["width"] + "\n"
+        #  Title Line
+        title_gap = int((meta["width"] - (len(title) + 2)) / 2)
+        out += bord + " "*title_gap + title + " "*(title_gap if meta["width"] % 2 else title_gap + 1) + bord + "\n"
+        #  Second Line
+        out += bord*meta["width"] + "\n"
     else:
-        out += bord + " "*titleGap + title + " "*titleGap + bord + "\n"
-
-    # Second Line
-    out += bord*maxWidth + "\n"
+        out += bord*meta["width"] + "\n"
 
     # Gaps
-    gaps = [[0 for _ in range(maxCols)] for _ in range(maxRows)]
-    for i in range(len(data)):
-        out += bord
-        for j in range(len(data[i])):
-            minPad = (maxWidth - (len(data[i]))) / len(data[i]) - len(data[i][j])
-            varGap = ((maxVars[j] + minPad) - len(data[i][j])) / 2
-            if int(varGap) == varGap:
-                gaps[i][j] = varGap
-            else:
-                gaps[i][j] = int(varGap) + .5
-
-    print(maxWidth)
-    print(gaps)
-    for i in gaps:
-        curGap = sum(i)*2+sum(maxVars)+maxCols+1
-        if curGap > maxWidth:
-            temp = (int(sum(i)*2+sum(maxVars)+maxCols+1) - maxWidth) % maxCols
-            if maxCols == 1:
-                temp = 1
-            for j in range(1,temp+1):
-                print(j)
-                if i[-j] == int(i[-j]):
-                    i[-j] -= .5
-                else:
-                    i[-j] = round(i[-j]-.5)
-        elif curGap < maxWidth:
-            temp = (maxWidth - int(sum(i) * 2 + sum(maxVars) + maxCols + 1)) % maxCols
-            if maxCols == 1:
-                temp = 1
-            for j in range(temp):
-                if i[j] == int(i[j]):
-                    i[j] += .5
-                else:
-                    i[j] = round(i[j]+.5)
-    print(gaps)
+    gaps = [[0 for _ in range(meta["cols"])] for _ in range(meta["rows"])]
+    for row_index in range(len(data)):
+        for col_index in range(len(meta["col_maxes"])):
+            col_max = meta["col_maxes"][col_index]
+            gaps[row_index][col_index] = (col_max - len(data[row_index][col_index])) / 2
 
     for i in range(len(gaps)):
-        gapList = gaps[i]
-        for j in range(len(gapList)):
-            gap = gapList[j]
+        out += bord
+        gap_list = gaps[i]
+        for j in range(len(gap_list)):
+            gap = gap_list[j]
             if gap == int(gap):
                 gap = int(gap)
                 out += " "*gap + data[i][j] + " "*gap + bord
@@ -91,14 +97,13 @@ def make_chart(data, title="Data Table", bord="#"):
                 gap = int(gap)
                 out += " " * gap + data[i][j] + " " * (gap+1) + bord
         out += "\n"
-
-    # Final Line
-    out += bord*maxWidth
+        out += bord*meta["width"]
+        out += "\n"
 
     return out
 
 
-def maxLen(list):
+def max_len(list):
     """
         For a list of lists, return the length of the longest list.
     :param list: List to find max of. Type: List
@@ -116,11 +121,11 @@ def main():
         Takes user input to generate the chart from.
     """
 
-    border = "#"  # input("What border style would you like? ")
-    title = "Test test test test test test"  # input("What title would you like? ")
-    dataFile = "singleData.txt"  # input("What filename do you wish to read your values from? ")
-    data = fr.parse_file("../" + dataFile, ";")
-    chart = make_chart([['','','','','','','','','','','','']], title, border)
+    border = input("What border style would you like? ") or "#"
+    title = input("What title would you like? ") or None
+    data_file = input("What file do you wish to read your values from? ") or "test.dat"
+    data = fr.parse_file(data_file, ";")
+    chart = make_chart(data, title, border)
     print(chart)
 
 
