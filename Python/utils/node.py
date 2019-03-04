@@ -12,6 +12,7 @@ class Node:
     :slot data: Data held in the current node. Type: Object
     :slot next: Next node in the list. Type: None, Node
     """
+
     __slots__ = ("prev", "data", "next")
 
     def __init__(self, prev, data, next):
