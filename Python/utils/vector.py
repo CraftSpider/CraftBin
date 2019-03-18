@@ -46,8 +46,13 @@ class Vector:
     def __mul__(self, other):
         if isinstance(other, Vector):
             return Vector(self.x * other.x, self.y * other.y, self.z * other.z)
+        elif isinstance(other, numbers.Real):
+            return Vector(self.x * other, self.y * other, self.z * other)
         else:
             return NotImplemented
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __matmul__(self, other):
         return self.cross(other)
@@ -94,14 +99,12 @@ class Vector:
         return Vector(x, y, z)
 
 
+UnitX = Vector(1, 0, 0)
+UnitY = Vector(0, 1, 0)
+UnitZ = Vector(0, 0, 1)
+
 Vector.Unit = Vector(1)
 Vector.Zero = Vector(0)
-Vector.UnitX = Vector(1, 0, 0)
-Vector.UnitY = Vector(0, 1, 0)
-Vector.UnitZ = Vector(0, 0, 1)
-
-
-if __name__ == "__main__":
-    vec = Vector(1, 0, 0)
-    vec2 = Vector(0, 1, 0)
-    print(math.trunc(vec))
+Vector.UnitX = UnitX
+Vector.UnitY = UnitY
+Vector.UnitZ = UnitZ

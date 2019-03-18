@@ -5,9 +5,11 @@ import sys
 import copy
 import json
 import nbt.nbt as nbt
+import utils.argparser as argparse
+import utils.rotator as rotator
+import utils.vector as vector
 
 from pathlib import Path
-from typing import List
 
 DEFAULT_RESOURCE_DIR = Path("./assets")
 DEFAULT_LINE_SIZE = 10
@@ -31,54 +33,8 @@ BLOCK_SIZE = 16
 
 
 # Settings, filled in by argument parsing
-line_size = DEFAULT_LINE_SIZE
 resource_path = DEFAULT_RESOURCE_DIR
-
-
-class ArgParser:
-
-    def __init__(self, args: List[str]):
-        self.source = args[0]
-        args = args[1:]
-
-        self.args = []
-        self.flags = []
-        self.options = {}
-
-        for arg in args:
-            if arg.startswith("--"):
-                if "=" in arg:
-                    pair = arg.split("=")
-                    self.options[pair[0]] = pair[1]
-                else:
-                    self.flags.append(arg[2:])
-            elif arg.startswith("-"):
-                for char in arg[1:]:
-                    self.flags.append(char)
-            else:
-                self.args.append(arg)
-
-    def get_arg(self, pos):
-        return self.args[pos]
-
-    def has_flag(self, *, short=None, long=None):
-        return (short in self.flags) or (long in self.flags)
-
-    def has_option(self, name):
-        return name in self.options
-
-    def get_option(self, name, default=None):
-        return self.options.get(name, default)
-
-
-class Element:
-
-    __slots__ = ("begin", "end", "faces")
-
-    def __init__(self, data):
-        self.begin = data["from"]
-        self.end = data["to"]
-        self.faces = copy.deepcopy(data["faces"])
+line_size = DEFAULT_LINE_SIZE
 
 
 class Model:
@@ -87,6 +43,8 @@ class Model:
                  "elements")
 
     MODELS = {}
+
+    UP_IDS = {"up": (0, 3), "down": (7, 4), "north": (1, 4), "south": (2, 7), "east": (3, 5), "west": (0, 6)}
 
     def __init__(self, namespace, name, data):
         self.namespace = namespace
@@ -122,6 +80,46 @@ class Model:
             tex = self.textures.get(tex[1:], "")
         return tex or None
 
+    def _resolve_side_rotation(self, x, y, z):
+        rot = rotator.Rotator(x, y, z)
+        vecs = [
+            vector.Vector(-1, 1, -1),
+            vector.Vector(1, 1, -1),
+            vector.Vector(-1, 1, 1),
+            vector.Vector(1, 1, 1),
+            vector.Vector(-1, -1, -1),
+            vector.Vector(1, -1, -1),
+            vector.Vector(-1, -1, 1),
+            vector.Vector(1, -1, 1)
+        ]
+
+        for i in range(len(vecs)):
+            vecs[i] = rot * vecs[i]
+
+        up = []
+        for i in range(len(vecs)):
+            if vecs[i].y > 0:
+                up.append(i)
+
+        # Get model side and rotation
+        m_side = None
+        for side in self.UP_IDS:
+            ids = self.UP_IDS[side]
+            if ids[0] in up and ids[1] in up:
+                m_side = side
+        m_rotation = None
+        tl = vecs[self.UP_IDS[m_side][0]]
+        if tl.z == -1 and tl.x == -1:
+            m_rotation = 0
+        elif tl.z == -1 and tl.x == 1:
+            m_rotation = 90
+        elif tl.z == 1 and tl.x == 1:
+            m_rotation = 180
+        elif tl.z == 1 and tl.x == -1:
+            m_rotation = 270
+
+        return m_side, m_rotation
+
     def inherits(self, name):
         if name == self.name:
             return True
@@ -131,16 +129,23 @@ class Model:
             return self.parent.inherits(name)
 
     def get_top(self, *, x=0, y=0, z=0):
-        # TODO: Generate model, rotate XYZ, handle sides
         tex_base = resource_path / self.namespace / "textures"
 
-        # Perform vector rotation to find new up side
+        side, rotation = self._resolve_side_rotation(x, y, z)
+        if side is None or rotation is None:
+            raise ArithmeticError("Invalid block rotation")
 
+        # TODO: Generate that side's texture from model
+        #       Rotate it, and return it
+
+        # Temporary hack instead of model interpolation
         if self.inherits("block/cube"):
-            tex = self._resolve_texture("up")
+            tex = self._resolve_texture(side)
             if tex is None:
                 return None
-            return Image.open(tex_base / (self._resolve_texture("up") + ".png"))
+            img: Image.Image = Image.open(tex_base / (tex + ".png"))
+            img = img.rotate(rotation)
+            return img
 
         elif "all" in self.textures:
             tex_path = tex_base / f"{self.textures['all']}.png"
@@ -213,10 +218,9 @@ def get_texture(namespace, b_id, data):
     blockstate = get_blockstate(namespace, b_id)
 
     # Parse get model from blockstate
-    model = None
-    x = None
-    y = None
-    z = None
+    x = 0
+    y = 0
+    z = 0
     variants = blockstate.get("variants", None)
     if variants:
         variant = None
@@ -356,8 +360,8 @@ def place_blocks(img, schematic):
                 mask = None
                 if texture.mode == "RGBA":
                     mask = texture.split()[3]
-                paste_x = base_x + (x * ef_size) + 1
-                paste_y = base_y + (z * ef_size) + 1
+                paste_x = base_x + (z * ef_size) + 1
+                paste_y = base_y + (x * ef_size) + 1
                 img.paste(texture, (paste_x, paste_y), mask=mask)
 
 
@@ -372,7 +376,7 @@ def generate_count(schematic):
 def main():
     global line_size, resource_path
 
-    parser = ArgParser(sys.argv)
+    parser = argparse.ArgParser(sys.argv)
 
     if len(parser.args) == 0:
         print(HELP_MESSAGE)
@@ -381,8 +385,8 @@ def main():
     filename = Path(parser.args[0])
     schematic = nbt.NBTFile(filename)
 
-    line_size = parser.get_option("line", DEFAULT_LINE_SIZE)
-    resource_path = parser.get_option("resrc", DEFAULT_RESOURCE_DIR)
+    line_size = int(parser.get_option("line", DEFAULT_LINE_SIZE))
+    resource_path = Path(parser.get_option("resrc", DEFAULT_RESOURCE_DIR))
 
     if schematic.name != "Schematic":
         print("NBT file not recognized as a schematic")
