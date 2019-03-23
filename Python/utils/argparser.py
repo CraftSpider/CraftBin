@@ -1,4 +1,7 @@
 
+_Sentinel = ...
+
+
 class ArgParser:
 
     def __init__(self, args):
@@ -23,8 +26,13 @@ class ArgParser:
             else:
                 self.args.append(arg)
 
-    def get_arg(self, pos):
-        return self.args[pos]
+    def get_arg(self, pos, default=_Sentinel):
+        try:
+            return self.args[pos]
+        except IndexError:
+            if default is not _Sentinel:
+                return default
+            raise
 
     def has_flag(self, *, short=None, long=None):
         return (short in self.flags) or (long in self.flags)

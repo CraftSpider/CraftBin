@@ -22,11 +22,11 @@ class Vector:
             self.y = y
             self.z = z
 
-    def __str__(self):
+    def __repr__(self):
         return f"Vector(x={self.x}, y={self.y}, z={self.z})"
 
     def __int__(self):
-        raise TypeError("Vectors cannot be implicitly converted to an integer")
+        raise TypeError("Vectors cannot be implicitly converted to an integer. Use abs() or .flatten")
 
     def __float__(self):
         return self.flatten()

@@ -25,10 +25,10 @@ class Rotator:
             raise TypeError("Rotator arguments must be a number or rotator")
 
         if not radians:
-            x = x / 57.2958
+            x = math.radians(x)
             if z is not None:
-                y = y / 57.2958
-                z = z / 57.2958
+                y = math.radians(y)
+                z = math.radians(z)
 
         self.x = x
         if z is None:
@@ -38,12 +38,15 @@ class Rotator:
             self.y = y
             self.z = z
 
+    def __repr__(self):
+        return f"Rotator(x={self.x}, y={self.y}, z={self.z}, radians=True)"
+
     def __mul__(self, other):
         if isinstance(other, vec.Vector):
             if self.x:
                 other = (math.cos(self.x) * other) + \
                     math.sin(self.x) * (vec.UnitX @ other) + \
-                    (1 - math.cos(self.x))*(vec.UnitX * other)*vec.UnitX
+                    (1 - math.cos(self.x)) * (vec.UnitX * other) * vec.UnitX
             if self.y:
                 other = (math.cos(self.y) * other) + \
                     math.sin(self.y) * (vec.UnitY @ other) + \
