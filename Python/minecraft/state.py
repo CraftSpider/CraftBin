@@ -12,11 +12,16 @@ class Config:
 
     def __init__(self, settings=None):
         self.resource_path = _DEFAULT_RESOURCE_PATH
+        self.block_size = 16
         self.models = {}
         self.blockstates = {}
 
         if settings is not None:
             self.__dict__.update(settings)
+
+    @property
+    def ef_size(self):
+        return self.block_size + 1
 
 
 DEFAULT_CONFIG = Config()

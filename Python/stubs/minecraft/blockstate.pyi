@@ -26,13 +26,15 @@ class Part:
 
 class Blockstate:
 
-    __slots__ = ("multipart", "variants", "parts")
+    __slots__ = ("namespace", "name", "multipart", "variants", "parts")
 
+    namespace: str
+    name: str
     multipart: bool
     variants: Dict[str, Union[Variant, List[Variant]]]
     parts: List[Part]
 
-    def __init__(self, namespace: str, data: Dict[str, Any]) -> None: ...
+    def __init__(self, namespace: str, name: str, data: Dict[str, Any]) -> None: ...
 
     def is_variant(self) -> bool: ...
 

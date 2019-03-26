@@ -15,6 +15,9 @@ class Variant:
         self.uv_lock = data.get("uvlock", False)
         self.weight = data.get("weight", 100)
 
+    def __repr__(self):
+        return f"Variant(model={repr(self.model)}, x={self.x}, y={self.y}, uv_lock={self.uv_lock}, weight={self.weight})"
+
 
 class Part:
 
@@ -28,12 +31,17 @@ class Part:
             self.variant = Variant(namespace, var)
         self.condition = data.get("when", None)
 
+    def __repr__(self):
+        return f"Part(condition={self.condition}, variant={repr(self.variant)})"
+
 
 class Blockstate:
 
-    __slots__ = ("multipart", "variants", "parts")
+    __slots__ = ("namespace", "name", "multipart", "variants", "parts")
 
-    def __init__(self, namespace, data):
+    def __init__(self, namespace, name, data):
+        self.namespace = namespace
+        self.name = name
         variants = data.get("variants", None)
         if not variants:
             self.variants = None
@@ -58,6 +66,9 @@ class Blockstate:
                 variables = name.split(",")
                 key = frozenset(tuple(x.split("=")) if len(x.split("=")) > 1 else tuple([x, None]) for x in variables)
                 self.variants[key] = var
+
+    def __repr__(self):
+        return f"Blockstate(namespace={self.namespace}, name={self.name}, multipart={self.multipart})"
 
     def is_variant(self):
         return not self.multipart
@@ -96,5 +107,5 @@ class Blockstate:
             path = config.resource_path / namespace / "blockstates" / f"{name}.json"
             with open(path) as file:
                 data = json.load(file)
-                blockstates[block] = cls(namespace, data)
+                blockstates[block] = cls(namespace, name, data)
         return blockstates[block]
