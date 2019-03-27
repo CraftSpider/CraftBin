@@ -183,7 +183,7 @@ def generate_count(schematic):
 
     print(counts)
 
-    # TODO: Generate image of correct size and
+    # TODO: Generate image of correct size
 
     # TODO: Place blocks and names plus counts
 

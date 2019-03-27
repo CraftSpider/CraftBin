@@ -1,5 +1,5 @@
 
-from typing import Union
+from typing import Union, List, Type
 import numbers
 
 ValidVector = Union['Vector', numbers.Real]
@@ -19,7 +19,7 @@ class Vector2:
 
     def to_3d(self) -> Vector: ...
 
-class Vector:
+class Vector3:
 
     __slots__ = ("x", "y", "z")
 
@@ -66,6 +66,10 @@ class Vector:
     def cross(self, other: Vector) -> Vector: ...
 
     def to_2d(self) -> Vector2: ...
+
+Vector: Type[Vector3] = Vector3
+
+def rect_list(top_left: Vector, bottom_right: Vector) -> List[Vector]: ...
 
 UnitX: Vector
 UnitY: Vector

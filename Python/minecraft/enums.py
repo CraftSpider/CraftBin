@@ -8,7 +8,7 @@ class Side(enum.Enum):
         value = len(cls.__members__) + 1
         obj = object.__new__(cls)
         obj._top_left = tl
-        obj._top_right = tr
+        obj._bottom_right = tr
         obj._axis = axis
         obj._value_ = value
         return obj
@@ -25,12 +25,12 @@ class Side(enum.Enum):
         return self._top_left
 
     @property
-    def tr(self):
-        return self._top_right
+    def br(self):
+        return self._bottom_right
 
     @property
     def ids(self):
-        return self._top_left, self._top_right
+        return self._top_left, self._bottom_right
 
     @property
     def axis(self):

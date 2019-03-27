@@ -78,9 +78,6 @@ class Model:
     __slots__ = ("namespace", "name", "_effective_data", "_raw_data", "parent", "textures", "ambient_occlusion",
                  "elements")
 
-    UP_IDS = {"up": (0, 3), "down": (7, 4), "north": (1, 4), "south": (2, 7), "east": (3, 5), "west": (0, 6)}
-    SIDE_AXIS = {"up": "y", "down": "-y", "north": "-z", "south": "z", "east": "x", "west": "-x"}
-
     def __init__(self, namespace, name, data):
         self.namespace = namespace
         self.name = name
@@ -96,7 +93,8 @@ class Model:
         self.textures = data.get("textures", None)
 
     def __repr__(self):
-        return f"Model(namespace={self.namespace}, name={self.name}, parent={self.parent.name if self.parent else None})"
+        parent = self.parent.name if self.parent else None
+        return f"Model(namespace={self.namespace}, name={self.name}, parent={parent})"
 
     def _get_effective(self):
         data = copy.deepcopy(self._raw_data)
@@ -109,75 +107,6 @@ class Model:
             data = par_data
         return data
 
-    def _resolve_texture(self, name):
-        if name.startswith("#"):
-            name = name[1:]
-        tex = self.textures.get(name, "")
-        while tex.startswith("#"):
-            tex = self.textures.get(tex[1:], "")
-        return tex or None
-
-    def _resolve_side_rotation(self, x, y, z):
-        rot = rotator.Rotator(x, y, z)
-        vecs = [
-            vector.Vector(-1, 1, -1),
-            vector.Vector(1, 1, -1),
-            vector.Vector(-1, 1, 1),
-            vector.Vector(1, 1, 1),
-            vector.Vector(-1, -1, -1),
-            vector.Vector(1, -1, -1),
-            vector.Vector(-1, -1, 1),
-            vector.Vector(1, -1, 1)
-        ]
-
-        for i in range(len(vecs)):
-            vecs[i] = rot * vecs[i]
-
-        up = []
-        for i in range(len(vecs)):
-            if vecs[i].y > 0:
-                up.append(i)
-
-        # Get model side and rotation
-        m_side = None
-        for side in enums.Side:
-            if side.tl in up and side.tr in up:
-                m_side = side
-                break
-        m_rotation = None
-        tl = vecs[m_side.tl]
-        if tl.z == -1 and tl.x == -1:
-            m_rotation = 0
-        elif tl.z == -1 and tl.x == 1:
-            m_rotation = 90
-        elif tl.z == 1 and tl.x == 1:
-            m_rotation = 180
-        elif tl.z == 1 and tl.x == -1:
-            m_rotation = 270
-
-        return m_side, m_rotation
-
-    def _resolve_uv(self, element, face, axis):
-        if face.uv is None:
-            pass
-            # TODO: interpret element begin/end based on side
-        else:
-            return face.uv
-
-    def _resolve_darken(self, element, axis):
-        neg = False
-        if len(axis) == 2:
-            neg = True
-            axis = axis[1]
-        pos_begin = getattr(element.begin, axis)
-        pos_end = getattr(element.end, axis)
-        if neg:
-            pos = 16 - min(pos_begin, pos_end)
-        else:
-            pos = max(pos_begin, pos_end)
-        factor = pos / 16
-        return factor
-
     def inherits(self, name):
         if name == self.name:
             return True
@@ -186,11 +115,19 @@ class Model:
         else:
             return self.parent.inherits(name)
 
+    def get_texture(self, name):
+        if name.startswith("#"):
+            name = name[1:]
+        tex = self.textures.get(name, "")
+        while tex.startswith("#"):
+            tex = self.textures.get(tex[1:], "")
+        return tex or None
+
     def get_top(self, *, x=0, y=0, z=0):
         config = state.get_config()
         tex_base = config.resource_path / self.namespace / "textures"
 
-        side, rotation = self._resolve_side_rotation(x, y, z)
+        side, rotation = _resolve_side_rotation(x, y, z)
         if side is None or rotation is None:
             raise ArithmeticError("Invalid block rotation")
 
@@ -201,13 +138,13 @@ class Model:
             if face is None:
                 continue
             axis = side.axis
-            factor = self._resolve_darken(element, axis)
-            tex = self._resolve_texture(face.texture)
+            factor = _resolve_darken(element, axis)
+            tex = self.get_texture(face.texture)
             if tex is None:
                 print(f"Resolved texture for model {self.namespace}:{self.name} is invalid: {face.texture}")
                 return None
             img = Image.open(tex_base / (tex + ".png"))
-            img.crop(self._resolve_uv(element, face, axis))
+            img.crop(_resolve_uv(element, face, side))
             img = Enhance.Brightness(img).enhance(factor)
             # Add the correct portion of the texture based on cube and depth
             mask = None
@@ -228,7 +165,7 @@ class Model:
             item_model = self.get_model(self.namespace, item_name)
         except FileNotFoundError:
             return None
-        return Image.open(tex_base / (item_model._resolve_texture("layer0") + ".png"))
+        return Image.open(tex_base / (item_model.get_texture("layer0") + ".png"))
 
     @classmethod
     def get_model(cls, namespace, name):
@@ -242,3 +179,68 @@ class Model:
                 data = json.load(file)
             models[block] = cls(namespace, name, data)
         return models[block]
+
+
+def _resolve_side_rotation(x, y, z):
+    rot = rotator.Rotator(x, y, z)
+    vecs = vector.rect_list(vector.Vector(-1, 1, -1), vector.Vector(1, -1, 1))
+
+    for i in range(len(vecs)):
+        vecs[i] = rot * vecs[i]
+
+    up = []
+    for i in range(len(vecs)):
+        if vecs[i].y > 0:
+            up.append(i)
+
+    # Get model side and rotation
+    m_side = None
+    for side in enums.Side:
+        if side.tl in up and side.br in up:
+            m_side = side
+            break
+    m_rotation = None
+    tl = vecs[m_side.tl]
+    if tl.z == -1 and tl.x == -1:
+        m_rotation = 0
+    elif tl.z == -1 and tl.x == 1:
+        m_rotation = 90
+    elif tl.z == 1 and tl.x == 1:
+        m_rotation = 180
+    elif tl.z == 1 and tl.x == -1:
+        m_rotation = 270
+
+    return m_side, m_rotation
+
+
+def _resolve_uv(element, face, side):
+    if face.uv is None:
+        begin = element.begin
+        end = element.end
+        vecs = vector.rect_list(begin, end)
+        tl = vecs[side.tl]
+        br = vecs[side.br]
+
+        if tl.x == br.x:
+            return tl.y, tl.z, br.y, br.z
+        elif tl.y == br.y:
+            return tl.x, tl.z, br.x, br.z
+        elif tl.z == br.z:
+            return tl.x, tl.y, br.x, br.y
+    else:
+        return face.uv
+
+
+def _resolve_darken(element, axis):
+    neg = False
+    if len(axis) == 2:
+        neg = True
+        axis = axis[1]
+    pos_begin = getattr(element.begin, axis)
+    pos_end = getattr(element.end, axis)
+    if neg:
+        pos = 16 - min(pos_begin, pos_end)
+    else:
+        pos = max(pos_begin, pos_end)
+    factor = pos / 16
+    return factor
