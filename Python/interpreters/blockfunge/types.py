@@ -93,12 +93,12 @@ class Function(Block):
         return self.module.add_frame(frame)
 
 
-class Type(Block):
+class Type(Block):  # TODO: Implement types
 
     __slots__ = ("methods",)
 
 
-class Extern(Block):
+class Extern(Block):  # TODO: Implement externs
     pass
 
 

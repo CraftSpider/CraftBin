@@ -3,6 +3,9 @@ from .enums import Direction
 import inspect
 
 
+# TODO: Remaining operators
+
+
 def eval_token(token):
     pass
 
