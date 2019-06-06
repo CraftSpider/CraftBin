@@ -5,6 +5,8 @@
     Author: CraftSpider
 """
 
+import utils.interp as interp
+
 from utils.stack import *
 from calc.loader import *
 
@@ -12,20 +14,43 @@ variables = {
     'pi': '3.14159265',
     'e': '2.71828182',
 }
-commands = {}
 
 
-def command(name=None):
+class Calculator(interp.Interpreter):
 
-    def pred(func):
-        cname = name or func.__name__
-        commands[cname] = func
-        return func
-    return pred
+    def on_command_not_found(self, name, data):
+        line = name + " " + data
+        first = first_word(line)
+        if first in variables and first_function(line) == '=':
+            result = set_var(line)
+            if result is None:
+                print("Variable can not contain itself in its definition!")
+            else:
+                print("Variable", result[0], "set to", result[1])
+        else:
+            orders = parse_line(line)
+            if isinstance(orders, list) and len(orders) != 0:
+                result = execute(orders)
+                result = verify_round(result)
+                if result is None:
+                    print("Statement syntax unreadable")
+                else:
+                    print(result)
+            elif '=' in line:
+                result = set_var(line)
+                if result is None:
+                    print("Variable can not contain itself in its definition!")
+                else:
+                    print("Variable", result[0], "set to", result[1])
+            elif not isinstance(orders, list):
+                print(str(orders) + "is not a known function, variable, or command")
 
 
-@command(name="help")
-def help_command(a=""):
+runner = Calculator("Calculator", prompt="PPC> ", opening="Welcome to the python programmable calculator!")
+
+
+@runner.command(name="help")
+def help_command():
     print("List of valid functions:")
     print("+, performs basic addition")
     print("-, performs basic subtraction/negation")
@@ -35,7 +60,7 @@ def help_command(a=""):
     print("=, set variables or checks equality")
 
 
-@command()
+@runner.command()
 def clear(var):
     if var in variables.keys():
         del variables[var]
@@ -43,8 +68,8 @@ def clear(var):
         print("Variable", var, "doesn't exist")
 
 
-@command()
-def variables(a=""):
+@runner.command(name="variables")
+def _variables():
     print("Variable table:")
     for i in variables:
         print("Variable:", i, "Value:", variables[i])
@@ -259,37 +284,7 @@ def main():
         Runs the primary function loop
     """
     init()
-    print("Welcome to the python programmable calculator!")
-    line = input("PPC> ")
-    exits = ["QUIT", "EXIT", "SHUTDOWN"]
-    while line not in exits:
-        first = first_word(line)
-        if first in commands:
-            commands[first](line[len(first)+1:])
-        elif first in variables and first_function(line) == '=':
-            result = set_var(line)
-            if result is None:
-                print("Variable can not contain itself in its definition!")
-            else:
-                print("Variable", result[0], "set to", result[1])
-        else:
-            orders = parse_line(line)
-            if isinstance(orders, list) and len(orders) != 0:
-                result = execute(orders)
-                result = verify_round(result)
-                if result is None:
-                    print("Statement syntax unreadable")
-                else:
-                    print(result)
-            elif '=' in line:
-                result = set_var(line)
-                if result is None:
-                    print("Variable can not contain itself in its definition!")
-                else:
-                    print("Variable", result[0], "set to", result[1])
-            elif not isinstance(orders, list):
-                print(str(orders) + "is not a known function, variable, or command")
-        line = input("PPC> ")
+    runner.run()
     print("Shutting down, goodnight!")
 
 

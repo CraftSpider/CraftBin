@@ -179,6 +179,7 @@ def interpret(data):
     return out
 
 
-print(interpret("""
+if __name__ == "__main__":
+    print(interpret("""
 :0g,:"~"`#@_1+0"Quines are Fun">_
  """))
