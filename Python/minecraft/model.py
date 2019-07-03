@@ -152,7 +152,7 @@ class Model:
             comps.append((factor, img, tlbr))
 
         # Add the portions of the texture based on cube and depth
-        out = Image.new("RGBA", (config.block_size, config.block_size), (0, 0, 0, 0))
+        out = Image.new("RGBA", (config.block_size, config.block_size), (255, 255, 255, 0))
         for item in sorted(comps, key=lambda x: x[0]):
             _, img, tlbr = item
             mask = None
@@ -161,7 +161,7 @@ class Model:
             out.paste(img, box=tlbr, mask=mask)
 
         outbytes = out.tobytes()
-        if outbytes.count(b"\xff") == len(outbytes):
+        if outbytes == b"\xFF\xFF\xFF\x00"*(len(outbytes)//4):
             return None
 
         out = out.rotate(rotation)
