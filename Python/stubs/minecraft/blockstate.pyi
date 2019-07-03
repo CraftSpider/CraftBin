@@ -1,7 +1,12 @@
 
 from typing import Dict, Any, Optional, Union, List
+
 import numbers
+import minecraft.enums as enums
+
+from PIL.Image import Image
 from minecraft.model import Model
+from minecraft.schematic import Schematic
 
 class Variant:
 
@@ -15,6 +20,14 @@ class Variant:
 
     def __init__(self, namespace: str, data: Dict[str, Any]) -> None: ...
 
+    def __repr__(self) -> str: ...
+
+    def get_side(self, side: enums.Side) -> Optional[Image]: ...
+
+    def get_side_height(self, side: enums.Side) -> int: ...
+
+    def get_sprite(self) -> Optional[Image]: ...
+
 class Part:
 
     __slots__ = ("condition", "variant")
@@ -23,6 +36,12 @@ class Part:
     variant: Union[Variant, List[Variant]]
 
     def __init__(self, namespace: str, data: Dict[str, Any]) -> None: ...
+
+    def __repr__(self) -> str: ...
+
+    def check_condition(self, schema: Schematic, x: int, y: int, z: int) -> bool: ...
+
+    def get_variant(self) -> Variant: ...
 
 class Blockstate:
 
@@ -42,7 +61,9 @@ class Blockstate:
 
     def has_variable(self, name: str) -> bool: ...
 
-    def get_variant(self, **kwargs: Optional[str]): ...
+    def get_variant(self, **kwargs: Optional[str]) -> Optional[Variant]: ...
+
+    def get_parts(self) -> List[Part]: ...
 
     @classmethod
     def get_blockstate(cls, namespace: str, block: str) -> Blockstate: ...

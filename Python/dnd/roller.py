@@ -1,23 +1,17 @@
 import random
 import string
 
+import utils.interp as interp
+
 
 old_faithful = (2, 2, 3, 4, 5, 5)
-commands = {}
 
 
-def command(name=None):
-
-    def pred(func):
-        cname = name or func.__name__
-        commands[cname] = func
-        return func
-    return pred
+roller = interp.Interpreter("DND Roller", opening="DND Roll System")
 
 
-@command()
-def roll(*order):
-    order = "".join(order)
+@roller.command()
+def roll(*, order):
     dice = []
     flat = []
     die = False
@@ -64,17 +58,7 @@ def roll(*order):
 
 
 def main():
-    print("DND Roll System")
-    order = input("> ")
-    while order != "exit":
-        args = order.split(" ")
-        invoker = args[0]
-        args = args[1:]
-        if invoker in commands:
-            commands[invoker](*args)
-        else:
-            print("Unknown Command")
-        order = input("> ")
+    roller.run()
 
 
 if __name__ == "__main__":

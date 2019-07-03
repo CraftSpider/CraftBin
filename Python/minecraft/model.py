@@ -123,7 +123,8 @@ class Model:
             tex = self.textures.get(tex[1:], "")
         return tex or None
 
-    def get_top(self, *, x=0, y=0, z=0):
+    def get_side(self, side, *, x=0, y=0, z=0):
+        # TODO: get based on side, don't just get the top :P
         config = state.get_config()
         tex_base = config.resource_path / self.namespace / "textures"
 
@@ -131,8 +132,8 @@ class Model:
         if side is None or rotation is None:
             raise ArithmeticError("Invalid block rotation")
 
-        blank = Image.new("RGBA", (config.block_size, config.block_size), Color.getrgb("white"))
-        out = Image.new("RGBA", (config.block_size, config.block_size), Color.getrgb("white"))
+        # Generate dict of elements with depth
+        comps = []
         for element in self.elements:
             face = element.get_face(side)
             if face is None:
@@ -143,19 +144,40 @@ class Model:
             if tex is None:
                 print(f"Resolved texture for model {self.namespace}:{self.name} is invalid: {face.texture}")
                 return None
+            tlbr = _resolve_tlbr(element, side)
+            uv = face.uv or tlbr
             img = Image.open(tex_base / (tex + ".png"))
-            img.crop(_resolve_uv(element, face, side))
+            img = img.crop(uv)
             img = Enhance.Brightness(img).enhance(factor)
-            # Add the correct portion of the texture based on cube and depth
+            comps.append((factor, img, tlbr))
+
+        # Add the portions of the texture based on cube and depth
+        out = Image.new("RGBA", (config.block_size, config.block_size), (0, 0, 0, 0))
+        for item in sorted(comps, key=lambda x: x[0]):
+            _, img, tlbr = item
             mask = None
             if img.mode == "RGBA":
                 mask = img.split()[3]
-            out.paste(img, mask=mask)
-        if out == blank:
+            out.paste(img, box=tlbr, mask=mask)
+
+        outbytes = out.tobytes()
+        if outbytes.count(b"\xff") == len(outbytes):
             return None
 
         out = out.rotate(rotation)
         return out
+
+    def get_side_height(self, side, x=0, y=0, z=0):
+        # TODO: get based on side, don't just get the top :P
+        side, rotation = _resolve_side_rotation(x, y, z)
+        if side is None or rotation is None:
+            raise ArithmeticError("Invalid block rotation")
+
+        def _get_factor():
+            for el in self.elements:
+                yield _resolve_darken(el, side.axis)
+
+        return max(_get_factor())
 
     def get_sprite(self):
         config = state.get_config()
@@ -165,7 +187,11 @@ class Model:
             item_model = self.get_model(self.namespace, item_name)
         except FileNotFoundError:
             return None
-        return Image.open(tex_base / (item_model.get_texture("layer0") + ".png"))
+        tex = item_model.get_texture("layer0")
+        if tex is None:
+            print(f"Couldn't find texture for item {item_name}")
+            return None
+        return Image.open(tex_base / (tex + ".png"))
 
     @classmethod
     def get_model(cls, namespace, name):
@@ -213,22 +239,35 @@ def _resolve_side_rotation(x, y, z):
     return m_side, m_rotation
 
 
-def _resolve_uv(element, face, side):
-    if face.uv is None:
-        begin = element.begin
-        end = element.end
-        vecs = vector.rect_list(begin, end)
-        tl = vecs[side.tl]
-        br = vecs[side.br]
+def _resolve_tlbr(element, side):
+    begin = element.begin
+    end = element.end
+    vecs = vector.rect_list(begin, end)
+    tl = vecs[side.tl]
+    br = vecs[side.br]
 
-        if tl.x == br.x:
-            return tl.y, tl.z, br.y, br.z
-        elif tl.y == br.y:
-            return tl.x, tl.z, br.x, br.z
-        elif tl.z == br.z:
-            return tl.x, tl.y, br.x, br.y
+    if tl.x == br.x:
+        out = [tl.y, tl.z, br.y, br.z]
+    elif tl.y == br.y:
+        out = [tl.x, tl.z, br.x, br.z]
+    elif tl.z == br.z:
+        out = [tl.x, tl.y, br.x, br.y]
     else:
-        return face.uv
+        raise ValueError("Invalid element tl/br for automatic UV resolve")
+
+    # Fix the generated return tl/br positions (TODO: may not be generic for all possible sides/sizes)
+    a = out[0] > out[2]
+    b = out[1] > out[3]
+    if a or b and not (a and b):
+        if a:
+            temp = out[0]
+            out[0] = out[2]
+            out[2] = temp
+        else:
+            temp = out[1]
+            out[1] = out[3]
+            out[3] = temp
+    return tuple(out)
 
 
 def _resolve_darken(element, axis):

@@ -1,5 +1,6 @@
 # FRC Betting through command line
 import utils.file_readers as file_util
+import utils.interp as interp
 import pickle
 
 data_file = "data/FRC_Data.dat"
@@ -109,16 +110,14 @@ class Data:
         return item
 
 
-commands = {}
+class FRCContext(interp.Context):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = self.interpreter.data
 
 
-def command(name=None):
-
-    def pred(func):
-        cname = name or func.__name__
-        commands[cname] = func
-        return func
-    return pred
+runner = interp.Interpreter("FRC Betting", opening="FRC Betting V1.1", ctx_class=FRCContext)
 
 
 def load_file(filename):
@@ -129,8 +128,8 @@ def load_file(filename):
             return None
 
 
-@command(name="createuser")
-def create_user(data, username="", start_val=""):
+@runner.command(name="createuser", pass_ctx=True)
+def create_user(ctx, username="", start_val=""):
     username = username or input("Username: ")
     start_val = start_val or input("Starting cash: ")
     try:
@@ -139,22 +138,22 @@ def create_user(data, username="", start_val=""):
         print("Invalid starting cash")
         return
     user = User(username, start_val)
-    data.add_user(user)
+    ctx.data.add_user(user)
     print("Created user", user.name, "with starting value", user.cash)
 
 
-@command(name="removeuser")
-def remove_user(data, username):
+@runner.command(name="removeuser", pass_ctx=True)
+def remove_user(ctx, username):
     username = username or input("Username: ")
-    user = data.remove_user(username)
+    user = ctx.data.remove_user(username)
     if user:
         print("Removed user " + user.name)
     else:
         print("User doesn't exist")
 
 
-@command(name="createround")
-def create_round(data, round_num="", red_team="", blue_team=""):
+@runner.command(name="createround", pass_ctx=True)
+def create_round(ctx, round_num="", red_team="", blue_team=""):
     round_num = round_num or input("Round Number: ")
     red_team = red_team or input("Red Alliance: ").strip()
     blue_team = blue_team or input("Blue Alliance: ").strip()
@@ -169,26 +168,26 @@ def create_round(data, round_num="", red_team="", blue_team=""):
         print("Please give 3 teams on each alliance!")
         return
     _round = Round(round_num, red_team, blue_team)
-    data.add_round(_round)
+    ctx.data.add_round(_round)
     print("Created round #{}".format(_round.number))
 
 
-@command(name="removeround")
-def remove_round(data, num=""):
+@runner.command(name="removeround", pass_ctx=True)
+def remove_round(ctx, num=""):
     num = num or input("Round Number: ")
     try:
         num = int(num)
     except ValueError:
         print("Invalid round number")
-    _round = data.remove_round(num)
+    _round = ctx.data.remove_round(num)
     if _round:
         print("Removed round", _round.number)
     else:
         print("Round doesn't exist")
 
 
-@command(name="resolveround")
-def resolve_round(data, num="", result=""):
+@runner.command(name="resolveround", pass_ctx=True)
+def resolve_round(ctx, num="", result=""):
     num = num or input("Round Number: ")
     result = result or input("Winner: ").upper()
     try:
@@ -198,7 +197,7 @@ def resolve_round(data, num="", result=""):
         return
     if result != "RED" and result != "BLUE":
         result = "UNKNOWN"
-    _round = data.get_round(num)
+    _round = ctx.data.get_round(num)
     if _round:
         _round.resolve_round(result)
         print("Round result set")
@@ -206,8 +205,8 @@ def resolve_round(data, num="", result=""):
         print("Round doesn't exist")
 
 
-@command(name="addbet")
-def add_bet(data, name="", num="", amount="", result=""):
+@runner.command(name="addbet", pass_ctx=True)
+def add_bet(ctx, name="", num="", amount="", result=""):
     name = name or input("Username: ")
     num = num or input("Round Number: ")
     result = result or input("Result Guess: ").upper()
@@ -225,20 +224,20 @@ def add_bet(data, name="", num="", amount="", result=""):
     if result != "RED" and result != "BLUE":
         print("Invalid result guess")
         return
-    user = data.get_user(name)
-    _round = data.get_round(num)
+    user = ctx.data.get_user(name)
+    _round = ctx.data.get_round(num)
     if user and _round:
         if user.cash >= amount:
             user.cash = user.cash - amount
             bet = Bet(user, _round, amount, result)
-            data.add_bet(bet)
+            ctx.data.add_bet(bet)
         else:
             print("Insufficient funds")
     else:
         print("Invalid username or round number")
 
 
-@command(name="resolvebets")
+@runner.command(name="resolvebets", pass_ctx=True)
 def resolve_bets(data):
     pot = {}
     winners = {}
@@ -269,30 +268,30 @@ def resolve_bets(data):
             data.get_user(winner).cash += winnings
 
 
-@command(name="list")
-def _list(data, form=""):
+@runner.command(name="list", pass_ctx=True)
+def _list(ctx, form=""):
     form = form or input("Users or Rounds? ").strip()
     form = form.upper()
     if form == "USERS":
-        for user in data.users:
+        for user in ctx.data.users:
             print("Name:", user.name)
             print("Current Value:", user.cash)
     elif form == "ROUNDS":
-        for _round in data.rounds:
+        for _round in ctx.data.rounds:
             print("Number:", _round.number)
             print("Red Alliance:", _round.red_teams[0], _round.red_teams[1], _round.red_teams[2])
             print("Blue Alliance:", _round.blue_teams[0], _round.blue_teams[1], _round.blue_teams[2])
             print("Result:", _round.get_winner())
     elif form == "BETS":
-        for bet in data.bets:
+        for bet in ctx.data.bets:
             print("User:", bet.user)
             print("Round:", bet.round)
             print("Result:", bet.result)
             print("Amount:", bet.amount)
 
 
-@command(name="help")
-def help_command(data):
+@runner.command(name="help")
+def help_command():
     print("Welcome to FRC Betting V1.1.")
     print("Valid commands:")
     print("LIST: Lists current saved users or rounds")
@@ -306,23 +305,8 @@ def help_command(data):
 
 def main():
     data = load_file(data_file) or Data()
-    print("FRC Betting V1.1")
-    command_word = ""
-    exits = ["quit", "exit", "kill"]
-    while command_word not in exits:
-        user_in = input("> ").split()
-        try:
-            command_word = user_in[0].lower()
-        except IndexError:
-            continue
-        args = user_in[1:]
-        if command_word in commands:
-            try:
-                commands[command_word](data, *args)
-            except TypeError:
-                print("Invalid command arguments")
-        elif command_word not in exits:
-            print("Unrecognized Command")
+    runner.data = data
+    runner.run()
 
 
 if __name__ == "__main__":

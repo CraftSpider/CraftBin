@@ -77,7 +77,7 @@ class Schematic:
             self.datamap = json.load(file)
 
     def get_block(self, x, y, z):
-        if 0 >= z > self.length or 0 >= x > self.width or 0 >= y > self.height:
+        if not 0 <= z < self.length or not 0 <= x < self.width or not 0 <= y < self.height:
             raise AttributeError("Cannot get block outside of schematic range")
 
         pos = (y * self.length + z) * self.width + x

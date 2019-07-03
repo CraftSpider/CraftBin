@@ -1,5 +1,6 @@
 
 import json
+import random
 
 from . import model, state
 
@@ -18,6 +19,15 @@ class Variant:
     def __repr__(self):
         return f"Variant(model={repr(self.model)}, x={self.x}, y={self.y}, uv_lock={self.uv_lock}, weight={self.weight})"
 
+    def get_side(self, side):
+        return self.model.get_side(side, x=self.x, y=self.y)
+
+    def get_side_height(self, side):
+        return self.model.get_side_height(side, x=self.x, y=self.y)
+
+    def get_sprite(self):
+        return self.model.get_sprite()
+
 
 class Part:
 
@@ -33,6 +43,38 @@ class Part:
 
     def __repr__(self):
         return f"Part(condition={self.condition}, variant={repr(self.variant)})"
+
+    def check_condition(self, schema, x, y, z):
+        if self.condition is None:
+            return True
+        # TODO: Implement condition checking
+
+        for dir in ('north', 'south', 'east', 'west'):
+            loc = [x, y, z]
+            if dir == 'north':
+                loc[2] -= 1
+            elif dir == 'south':
+                loc[2] += 1
+            elif dir == 'west':
+                loc[0] -= 1
+            elif dir == 'east':
+                loc[0] += 1
+            if dir in self.condition:
+                case = bool(self.condition[dir])
+                try:
+                    _, block, _ = schema.get_block(*loc)
+                    if block == "air":
+                        return not case
+                except AttributeError:
+                    return not case
+
+        return True
+
+    def get_variant(self):
+        variant = self.variant
+        if isinstance(variant, list):
+            variant = random.choices(variant, weights=[x.weight for x in variant])
+        return variant
 
 
 class Blockstate:
@@ -64,7 +106,7 @@ class Blockstate:
                     var = Variant(namespace, data)
 
                 variables = name.split(",")
-                key = frozenset(tuple(x.split("=")) if len(x.split("=")) > 1 else tuple([x, None]) for x in variables)
+                key = frozenset(tuple(x.split("=")) for x in variables)
                 self.variants[key] = var
 
     def __repr__(self):
@@ -91,10 +133,18 @@ class Blockstate:
                 kwargs[arg] = "true"
             elif kwargs[arg] is False:
                 kwargs[arg] = "false"
+            elif kwargs[arg] is None:
+                kwargs[arg] = ""
         key = frozenset((name, kwargs[name]) for name in kwargs)
-        return self.variants.get(key, None)
+        variant = self.variants.get(key, None)
+        if isinstance(variant, list):
+            variant = random.choices(variant, weights=[x.weight for x in variant])
+        return variant
 
     # If using multiparts, use these:
+
+    def get_parts(self):
+        return self.parts
 
     # Factory function:
 

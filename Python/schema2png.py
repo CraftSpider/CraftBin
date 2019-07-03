@@ -6,7 +6,7 @@ import sys
 import utils.argparser as argparse
 import minecraft.state as state
 import minecraft.blockstate as blockstate
-import minecraft.model as model
+import minecraft.enums as enums
 import minecraft.schematic as schema
 
 from pathlib import Path
@@ -48,7 +48,8 @@ IMAGE_BOUNDARY = 3
 LAYER_BOUNDARY = 2
 
 
-def get_texture(namespace, block, data):
+def get_texture(schematic, x, y, z):
+    namespace, block, data = schematic.get_block(x, y, z)
     config = state.get_config()
     if data == -1:
         return Image.open(config.resource_path / f"{block}.png")
@@ -59,8 +60,6 @@ def get_texture(namespace, block, data):
         raise schema.SchematicError(f"Invalid block {namespace}:{block} with data {data}") from None
 
     # Parse get model from blockstate
-    x = 0
-    y = 0
     if b_state.is_variant():
         variant = b_state.get_variant(normal=None)
         if variant is None:
@@ -76,19 +75,37 @@ def get_texture(namespace, block, data):
                     variant = b_state.get_variant(axis="none")
             else:
                 variant = b_state.variants[next(iter(b_state.variants))]
-        x = variant.x
-        y = variant.y
-        b_model = variant.model
+        img = variant.get_side(enums.Side.UP)
+        if img is None:
+            img = variant.get_sprite()
+        if img is not None:
+            return img
     else:
-        b_model = model.Model.get_model(namespace, "block/cube_all")
+        parts = b_state.get_parts()
 
-    img = b_model.get_top(x=x, y=y, z=0)
-    if img is None:
-        img = b_model.get_sprite()
-    if img is None:
-        return Image.open(config.resource_path / "null.png")
-    else:
-        return img
+        # Generate list of pieces with heights
+        pieces = []
+        for part in parts:
+            if part.check_condition(schema=schematic, x=x, y=y, z=z):
+                variant = part.get_variant()
+                temp = variant.get_side(enums.Side.UP)
+                if temp is not None:
+                    # TODO: make sure it pastes in the right order and doesn't overwrite other parts
+                    pieces.append((variant.get_side_height(enums.Side.UP), temp))
+
+        # Generate output in order of height
+        out = Image.new("RGBA", (config.block_size, config.block_size), BASE_COLOR)
+        for piece in sorted(pieces, key=lambda x: x[0]):
+            img = piece[1]
+            mask = None
+            if img.mode == "RGBA":
+                mask = img.split()[3]
+            out.paste(img, mask=mask)
+        outbytes = out.tobytes()
+        if outbytes.count(b"\xff") != len(outbytes):
+            return out
+
+    return Image.open(config.resource_path / "null.png")
 
 
 def draw_grid(img):
@@ -147,8 +164,7 @@ def generate_blueprint(schematic):
             for x in range(schematic.width):
 
                 # Get block at position
-                namespace, block, data = schematic.get_block(x, h, z)
-                texture = get_texture(namespace, block, data)
+                texture = get_texture(schematic, x, h, z)
 
                 # Paste texture
                 mask = None
@@ -206,6 +222,8 @@ def create_image(schematic, parser):
         key = generate_key(schematic)
     if do_count:
         count = generate_count(schematic)
+
+    # TODO: combine_images(blueprint, key, count)
 
     return blueprint
 
