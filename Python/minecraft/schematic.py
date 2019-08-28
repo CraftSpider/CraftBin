@@ -5,7 +5,11 @@
 
 import json
 import pathlib
+from collections import namedtuple
 import nbt.nbt as nbt
+
+
+Block = namedtuple("Block", "namespace name data")
 
 
 class SchematicError(Exception):
@@ -87,7 +91,7 @@ class Schematic:
 
         namespace, block = name.split(":")
         namespace, block, data = self._apply_datamap(namespace, block, data)
-        return namespace, block, data
+        return Block(namespace, block, data)
 
 
 def load_schematic(path):

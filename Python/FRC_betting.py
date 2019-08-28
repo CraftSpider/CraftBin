@@ -1,5 +1,4 @@
 # FRC Betting through command line
-import utils.file_readers as file_util
 import utils.interp as interp
 import pickle
 
@@ -68,7 +67,8 @@ class Data:
 
     def __del__(self):
         print("Saving Data")
-        file_util.overwrite_file(data_file, pickle.dumps(self), "wb")
+        with open(data_file, "wb") as file:
+            pickle.dump(self, file)
 
     def add_user(self, user):
         self.users.append(user)

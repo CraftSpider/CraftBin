@@ -1,7 +1,12 @@
 
-from typing import Dict, Optional, Any, Tuple, Union
+from typing import Dict, Optional, Any, Tuple, Union, NamedTuple
 from nbt.nbt import NBTFile
 from pathlib import Path
+
+class Block(NamedTuple):
+    namespace: str
+    block: str
+    data: int
 
 class SchematicError(Exception): ...
 
@@ -22,6 +27,6 @@ class Schematic:
 
     def load_datamap(self, filename: Union[Path, str, bytes]) -> None: ...
 
-    def get_block(self, x: int, y: int, z: int) -> Tuple[str, str, int]: ...
+    def get_block(self, x: int, y: int, z: int) -> Block: ...
 
 def load_schematic(path: Union[str, bytes, Path]) -> Optional[Schematic]: ...

@@ -44,10 +44,11 @@ class Part:
     def __repr__(self):
         return f"Part(condition={self.condition}, variant={repr(self.variant)})"
 
-    def check_condition(self, schema, x, y, z):
+    def check_condition(self, x, y, z):
         if self.condition is None:
             return True
-        # TODO: Implement condition checking
+        # TODO: Finish condition checking
+        config = state.get_config()
 
         for dir in ('north', 'south', 'east', 'west'):
             loc = [x, y, z]
@@ -62,7 +63,7 @@ class Part:
             if dir in self.condition:
                 case = bool(self.condition[dir])
                 try:
-                    _, block, _ = schema.get_block(*loc)
+                    _, block, _ = config.schematic.get_block(*loc)
                     if block == "air":
                         return not case
                 except AttributeError:

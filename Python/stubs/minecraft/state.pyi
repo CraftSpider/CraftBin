@@ -1,8 +1,9 @@
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
 from minecraft.model import Model
 from minecraft.blockstate import Blockstate
+from minecraft.schematic import Schematic
 
 _DEFAULT_RESOURCE_PATH: Path = ...
 
@@ -12,6 +13,8 @@ class Config:
     block_size: int
     models: Dict[str, Model]
     blockstates: Dict[str, Blockstate]
+
+    schematic: Optional[Schematic]
 
     def __init__(self, settings: Dict[str, Any] = ...) -> None: ...
 

@@ -16,6 +16,8 @@ class Config:
         self.models = {}
         self.blockstates = {}
 
+        self.schematic = None
+
         if settings is not None:
             self.__dict__.update(settings)
 

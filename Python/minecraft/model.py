@@ -4,10 +4,8 @@
 
 import json
 import copy
-import utils.vector as vector
-import utils.rotator as rotator
+import spidertools.math as math
 import PIL.Image as Image
-import PIL.ImageColor as Color
 import PIL.ImageEnhance as Enhance
 
 from . import state, enums
@@ -18,8 +16,8 @@ class Rotation:
     __slots__ = ("origin", "axis", "angle", "rescale")
 
     def __init__(self, data):
-        self.origin = vector.Vector(*data["origin"])
-        self.axis = getattr(vector, f"Unit{data['axis'].upper()}")
+        self.origin = math.Vector(*data["origin"])
+        self.axis = getattr(math, f"Unit{data['axis'].upper()}")
         self.angle = data["angle"]
         self.rescale = data.get("rescale", False)
 
@@ -56,8 +54,8 @@ class Element:
     __slots__ = ("begin", "end", "rotation", "shade", "faces")
 
     def __init__(self, data):
-        self.begin = vector.Vector(*data["from"])
-        self.end = vector.Vector(*data["to"])
+        self.begin = math.Vector(*data["from"])
+        self.end = math.Vector(*data["to"])
         self.rotation = Rotation(data["rotation"]) if "rotation" in data else None
         self.shade = data.get("shade", True)
         self.faces = [Face(x, data["faces"][x]) for x in data["faces"]]
@@ -124,11 +122,10 @@ class Model:
         return tex or None
 
     def get_side(self, side, *, x=0, y=0, z=0):
-        # TODO: get based on side, don't just get the top :P
         config = state.get_config()
         tex_base = config.resource_path / self.namespace / "textures"
 
-        side, rotation = _resolve_side_rotation(x, y, z)
+        side, rotation = _resolve_side_rotation(side, x, y, z)
         if side is None or rotation is None:
             raise ArithmeticError("Invalid block rotation")
 
@@ -149,7 +146,7 @@ class Model:
             img = Image.open(tex_base / (tex + ".png"))
             img = img.crop(uv)
             img = Enhance.Brightness(img).enhance(factor)
-            comps.append((factor, img, tlbr))
+            comps.append((factor, img, tlbr[:2]))
 
         # Add the portions of the texture based on cube and depth
         out = Image.new("RGBA", (config.block_size, config.block_size), (255, 255, 255, 0))
@@ -167,9 +164,8 @@ class Model:
         out = out.rotate(rotation)
         return out
 
-    def get_side_height(self, side, x=0, y=0, z=0):
-        # TODO: get based on side, don't just get the top :P
-        side, rotation = _resolve_side_rotation(x, y, z)
+    def get_side_height(self, side, *, x=0, y=0, z=0):
+        side, rotation = _resolve_side_rotation(side, x, y, z)
         if side is None or rotation is None:
             raise ArithmeticError("Invalid block rotation")
 
@@ -207,16 +203,19 @@ class Model:
         return models[block]
 
 
-def _resolve_side_rotation(x, y, z):
-    rot = rotator.Rotator(x, y, z)
-    vecs = vector.rect_list(vector.Vector(-1, 1, -1), vector.Vector(1, -1, 1))
+def _resolve_side_rotation(side, x, y, z):
+    rot = math.Rotator(x, y, z)
+    vecs = math.rect_list(math.Vector(-1, 1, -1), math.Vector(1, -1, 1))
 
     for i in range(len(vecs)):
         vecs[i] = rot * vecs[i]
 
+    axis = side.axis[-1]
+    invert = side.axis[0] == "-"
     up = []
     for i in range(len(vecs)):
-        if vecs[i].y > 0:
+        val = getattr(vecs[i], axis)
+        if (not invert and val > 0) or (invert and val < 0):
             up.append(i)
 
     # Get model side and rotation
@@ -242,7 +241,7 @@ def _resolve_side_rotation(x, y, z):
 def _resolve_tlbr(element, side):
     begin = element.begin
     end = element.end
-    vecs = vector.rect_list(begin, end)
+    vecs = math.rect_list(begin, end)
     tl = vecs[side.tl]
     br = vecs[side.br]
 

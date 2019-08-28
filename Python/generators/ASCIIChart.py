@@ -4,8 +4,6 @@
     Author: CraftSpider
 """
 
-from utils import file_readers as fr
-
 
 def fix_data(data, meta):
     """
@@ -124,7 +122,10 @@ def main():
     border = input("What border style would you like? ") or "#"
     title = input("What title would you like? ") or None
     data_file = input("What file do you wish to read your values from? ") or "test.dat"
-    data = fr.parse_file(data_file, ";")
+    with open(data_file) as file:
+        data = [line.strip().split(";") for line in file]
+        if len(data) and data[-1][-1] == "":
+            del data[-1]
     chart = make_chart(data, title, border)
     print(chart)
 

@@ -4,7 +4,7 @@ import numbers
 import minecraft.enums as enums
 
 from PIL.Image import Image
-from utils.vector import Vector
+from spidertools.math import Vector
 
 class Rotation:
 
@@ -79,7 +79,7 @@ class Model:
     @classmethod
     def get_model(cls, namespace: str, name: str) -> Model: ...
 
-def _resolve_side_rotation(x: int, y: int, z: int) -> Tuple[enums.Side, int]: ...
+def _resolve_side_rotation(side: enums.Side, x: int, y: int, z: int) -> Tuple[enums.Side, int]: ...
 
 def _resolve_tlbr(element: Element, side: enums.Side) -> Tuple[int, int, int, int]: ...
 

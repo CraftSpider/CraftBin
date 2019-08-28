@@ -32,7 +32,6 @@
 
 def is_topic_or_cutter(string):
     """Checks whether a string fits the form [alpha]+[numeric]+"""
-    is_cutter = True
     at_num = False
     found_alpha = False
     for char in string:
@@ -43,25 +42,15 @@ def is_topic_or_cutter(string):
                 if found_alpha:
                     at_num = True
                 else:
-                    is_cutter = False
-                    break
+                    return False
             else:
-                is_cutter = False
-                break
-        else:
-            if char.isalpha():
-                is_cutter = False
-                break
-            elif char.isnumeric():
-                pass
-            else:
-                is_cutter = False
-                break
-    return is_cutter
+                return False
+        elif not char.isnumeric():
+            return False
+    return True
 
 
 def is_year(string):
-    is_year_format = True
     at_letter = False
     num_nums = 0
     for char in string:
@@ -70,14 +59,12 @@ def is_year(string):
                 num_nums += 1
             elif char.isalpha():
                 if num_nums != 4:
-                    is_year_format = False
-                    break
+                    return False
                 at_letter = True
         else:
             if not char.isalpha():
-                is_year_format = False
-                break
-    return is_year_format
+                return False
+    return num_nums == 4
 
 
 def _split(string):
@@ -95,19 +82,43 @@ def _split(string):
     return out
 
 
+def _compare(a, b):
+    """
+        Compare sub-topics or cutters with each other, returning an integer in [-1,1] to indicate
+        less than, equal to, or greater than.
+    :param a: First topic
+    :param b: Second topic
+    :return: Result of comparing the two
+    """
+    a = _split(a)
+    b = _split(b)
+    if a[0] != b[0]:
+        if a[0] > b[0]:
+            return 1
+        else:
+            return -1
+    max_len = max(len(a[1]), len(b[1]))
+    for i in range(max_len):
+        if i > len(b[1]):
+            return 1
+        elif i > len(a[1]):
+            return -1
+        schar = a[1][i]
+        ochar = b[1][i]
+        if schar > ochar:
+            return 1
+        elif schar < ochar:
+            return -1
+
+
+def _split_year(string):
+    return int(string[:4]), string[4:]
+
+
 class LOC:
 
-    origCode = ""
-
-    section = ""
-    topic = ""
-    sub_topic = ""
-    cutter = ""
-    version = 0
-    year = 0
-    work_letter = ""
-    copy = 0
-    other = ""
+    __slots__ = ("orig_code", "section", "topic", "sub_topic", "cutter", "version", "_year", "work_letter", "copy",
+                 "other")
 
     def __init__(self, code):
         """
@@ -117,201 +128,68 @@ class LOC:
                      precedence.
         """
         if isinstance(code, str):
-            if self._iscode(code):
-                self.origCode = code
-                code = code.split()
-                # If there's a section name, pull that out first
-                if code[0].isalpha():
-                    self.section = code.pop(0)
-                # Now, get the topic and sub-topic if they exist. Also cutter if it's dotted.
-                whole_topic = code.pop(0)
-                whole_topic = whole_topic.split(".")
-                self.topic = whole_topic.pop(0) +\
-                    (".{}".format(whole_topic.pop(0)) if len(whole_topic) and whole_topic[0].isnumeric() else "")
-                if len(whole_topic):
-                    self.sub_topic = whole_topic.pop(0)
-                if len(whole_topic):
-                    self.cutter = whole_topic[0]
-                # Now, pull out the cutter if it exists.
-                if len(code):
-                    if is_topic_or_cutter(code[0]):
-                        self.cutter = code.pop(0)
-                # Remainder can come in any order. We'll figure out which it is each iteration.
-                for item in code:
-                    if item.startswith("v."):
-                        self.version = int(item[2:])
-                    elif item.startswith("c."):
-                        self.copy = int(item[2:])
-                    elif is_year(item):
-                        self.year = int(item[:4])
-                        self.work_letter = item[4:]
-                    elif self.section != "" and item.isalpha():
-                        self.section = item
-                    else:
-                        self.other += item
+            if not self._iscode(code):
+                raise ValueError("String is not a valid LoC code")
 
-            else:
-                raise ValueError
+            self.orig_code = ""
+            self.section = ""
+            self.topic = ""
+            self.sub_topic = ""
+            self.cutter = ""
+            self.version = 0
+            self._year = 0
+            self.work_letter = ""
+            self.copy = 0
+            self.other = ""
+
+            self.orig_code = code
+            code = code.split()
+
+            # If there's a section name, pull that out first
+            if code[0].isalpha():
+                self.section = code.pop(0)
+
+            # Now, get the topic and sub-topic if they exist. Also cutter if it's dotted.
+            whole_topic = code.pop(0)
+            whole_topic = whole_topic.split(".")
+            self.topic = whole_topic.pop(0) +\
+                (".{}".format(whole_topic.pop(0)) if len(whole_topic) and whole_topic[0].isnumeric() else "")
+            if len(whole_topic):
+                self.sub_topic = whole_topic.pop(0)
+            if len(whole_topic):
+                self.cutter = whole_topic[0]
+
+            # Now, pull out the cutter if it exists separately.
+            if len(code) and is_topic_or_cutter(code[0]):
+                self.cutter = code.pop(0)
+
+            # Remainder can come in any order. We'll figure out which it is each iteration.
+            for item in code:
+                if item.startswith("v."):
+                    self.version = int(item[2:])
+                elif item.startswith("c."):
+                    self.copy = int(item[2:])
+                elif is_year(item):
+                    self._year, self.work_letter = _split_year(item)
+                elif self.section != "" and item.isalpha():
+                    self.section = item
+                else:
+                    if self.other:
+                        self.other += " "
+                    self.other += item
+        elif isinstance(code, LOC):
+            self.orig_code = code.orig_code
+            self.section = code.section
+            self.topic = code.topic
+            self.sub_topic = code.sub_topic
+            self.cutter = code.cutter
+            self.version = code.version
+            self._year = code._year
+            self.work_letter = code.work_letter
+            self.copy = code.copy
+            self.other = code.other
         else:
-            raise TypeError
-
-    def _iscode(self, code):
-        if code.isalpha() or code.isnumeric():
-            return False
-        for char in code:
-            if not char.isalnum() and char != "." and char != " ":
-                return False
-        return True
-
-    def split(self):
-        """
-            Splits self into a list, with each portion of the code in order.
-            Form:
-            ['OVER', 'A14.5', 'B43', 'F3', 'v.1', '2001', 'c.1']
-        :return: Code split into a list. Type: List
-        """
-        out = []
-        if self.section != "":
-            out += [self.section]
-        out += [self.topic]
-        if self.sub_topic != "":
-            out += [self.sub_topic]
-        if self.cutter != "":
-            out += [self.cutter]
-        if self.version != 0:
-            out += ["v." + str(self.version)]
-        if self.year != 0:
-            out += [str(self.year) + self.work_letter]
-        if self.other != "":
-            out += [self.other]
-        if self.copy != 0:
-            out += ["c." + str(self.copy)]
-        return out
-
-    def compare(self, other):
-        """
-            Compare ourselves to another LOC instance, and determine whether we are greater, less than, or equal.
-            "Lesser" Means closer to A1, and "Greater" means closer to Z9999
-        :param other: LOC class instance to compare to. Type: LOC
-        :return: 1 if we're greater, 0 if equal, -1 if we're lesser. Prefixes are greater than not, in alphabet order. Type: Int
-        """
-        # First, compare sections
-        if (self.section != "" or other.section != "") and self.section != other.section:
-            if self.section == "" and other.section != "":
-                return -1
-            elif self.section != "" and other.section == "":
-                return 1
-            else:
-                if self.section > other.section:
-                    return 1
-                else:
-                    return -1
-
-        # Next, compare topics
-        if self.topic != other.topic:
-            stopic = _split(self.topic)
-            otopic = _split(other.topic)
-            if stopic[0] != otopic[0]:
-                if stopic[0] > otopic[0]:
-                    return 1
-                else:
-                    return -1
-            if float(stopic[1]) > float(otopic[1]):
-                return 1
-            else:
-                return -1
-
-        # Then sub-topics
-        if self.sub_topic != other.sub_topic:
-            stopic = _split(self.sub_topic)
-            otopic = _split(other.sub_topic)
-            if stopic[0] != otopic[0]:
-                if stopic[0] > otopic[0]:
-                    return 1
-                else:
-                    return -1
-            if len(stopic[1]) >= len(otopic[1]):
-                for i in range(len(stopic[1])):
-                    if i > len(otopic[1]):
-                        return 1
-                    schar = stopic[1][i]
-                    ochar = otopic[1][i]
-                    if schar > ochar:
-                        return 1
-                    elif schar < ochar:
-                        return -1
-            else:
-                for i in range(len(otopic[1])):
-                    if i > len(stopic[1]):
-                        return -1
-                    schar = stopic[1][i]
-                    ochar = otopic[1][i]
-                    if schar > ochar:
-                        return 1
-                    elif schar < ochar:
-                        return -1
-
-        # Then cutters (same as sub-topic)
-        if self.cutter != other.cutter:
-            scutter = _split(self.cutter)
-            ocutter = _split(other.cutter)
-            if scutter[0] != ocutter[0]:
-                if scutter[0] > ocutter[0]:
-                    return 1
-                else:
-                    return -1
-            if len(scutter[1]) >= len(ocutter[1]):
-                for i in range(len(scutter[1])):
-                    if i > len(ocutter[1]):
-                        return 1
-                    schar = scutter[1][i]
-                    ochar = ocutter[1][i]
-                    if schar > ochar:
-                        return 1
-                    elif schar < ochar:
-                        return -1
-            else:
-                for i in range(len(ocutter[1])):
-                    if i > len(scutter[1]):
-                        return -1
-                    schar = scutter[1][i]
-                    ochar = ocutter[1][i]
-                    if schar > ochar:
-                        return 1
-                    elif schar < ochar:
-                        return -1
-
-        # Then normal after-effects in V-Y-O-C priority
-        if self.version != other.version:
-            if self.version > other.version:
-                return 1
-            return -1
-
-        if self.year != other.year:
-            if self.year > other.year:
-                return 1
-            return -1
-
-        # We must take the work letter into account
-        if self.work_letter != other.work_letter:
-            if self.work_letter > other.work_letter:
-                return 1
-            return -1
-
-        # If any unknown additions are present, try to guess at those.
-        if self.other != other.other:
-            # TODO: Try to guess numbers vs words and such
-            if self.other > other.other:
-                return 1
-            return -1
-
-        # Copy is always evaluated last
-        if self.copy != other.copy:
-            if self.copy > other.copy:
-                return 1
-            return -1
-
-        return 0  # All else fails, we must be equal.
+            raise TypeError("Input must be a string LoC code or LoC object")
 
     def __eq__(self, other):
         if isinstance(other, LOC):
@@ -349,24 +227,144 @@ class LOC:
     def __str__(self):
         out = ""
         if self.section != "":
-            out += "{} ".format(self.section)
+            out += f"{self.section} "
         out += self.topic
         if self.sub_topic != "":
-            out += ".{}".format(self.sub_topic)
+            out += f".{self.sub_topic}"
         if self.cutter != "":
-            out += " {}".format(self.cutter)
+            out += f" {self.cutter}"
         if self.version:
-            out += " v.{}".format(self.version)
+            out += f" v.{self.version}"
         if self.year:
-            out += " {}{}".format(self.year, self.work_letter)
+            out += f" {self.year}{self.work_letter}"
         if self.other != "":
-            out += " {}".format(self.other)
+            out += f" {self.other}"
         if self.copy:
-            out += " c.{}".format(self.copy)
+            out += f" c.{self.copy}"
         return out
 
     def __repr__(self):
-        return self.origCode
+        return self.orig_code
+
+    @property
+    def year(self):
+        return self._year
+
+    @year.setter
+    def year(self, val):
+        if not is_year(val):
+            raise AttributeError("Cannot set year to a number that isn't a valid year")
+        self._year, self.work_letter = val
+
+    def _iscode(self, code):
+        if code.isalpha() or code.isnumeric():
+            return False
+        for char in code:
+            if not char.isalnum() and char != "." and char != " ":
+                return False
+        return True
+
+    def split(self):
+        """
+            Splits self into a list, with each portion of the code in order.
+            Form:
+            ['OVER', 'A14.5', 'B43', 'F3', 'v.1', '2001', 'c.1']
+        :return: Code split into a list. Type: List
+        """
+        out = []
+        if self.section != "":
+            out.append(self.section)
+        out.append(self.topic)
+        if self.sub_topic != "":
+            out.append(self.sub_topic)
+        if self.cutter != "":
+            out.append(self.cutter)
+        if self.version != 0:
+            out.append("v." + str(self.version))
+        if self.year != 0:
+            out.append(str(self.year) + self.work_letter)
+        if self.other != "":
+            out.append(self.other)
+        if self.copy != 0:
+            out.append("c." + str(self.copy))
+        return out
+
+    def compare(self, other):
+        """
+            Compare ourselves to another LOC instance, and determine whether we are greater, less than, or equal.
+            "Lesser" Means closer to A1, and "Greater" means closer to Z9999
+        :param other: LOC class instance to compare to. Type: LOC
+        :return: 1 if we're greater, 0 if equal, -1 if we're lesser. Prefixes are greater than not, in alphabet order. Type: Int
+        """
+        # First, compare sections
+        if (self.section != "" or other.section != "") and self.section != other.section:
+            if self.section == "" and other.section != "":
+                return -1
+            elif self.section != "" and other.section == "":
+                return 1
+            else:
+                if self.section > other.section:
+                    return 1
+                else:
+                    return -1
+
+        # Next, compare topics
+        if self.topic != other.topic:
+            stopic = _split(self.topic)
+            otopic = _split(other.topic)
+            if stopic[0] != otopic[0]:
+                if stopic[0] > otopic[0]:
+                    return 1
+                else:
+                    return -1
+            if float(stopic[1]) > float(otopic[1]):
+                return 1
+            else:
+                return -1
+
+        # Then sub-topics
+        if self.sub_topic != other.sub_topic:
+            result = _compare(self.sub_topic, other.sub_topic)
+            if result != 0:
+                return result
+
+        # Then cutters
+        if self.cutter != other.cutter:
+            result = _compare(self.cutter, other.cutter)
+            if result != 0:
+                return result
+
+        # Then normal after-effects in V-Y-O-C priority
+        if self.version != other.version:
+            if self.version > other.version:
+                return 1
+            return -1
+
+        if self.year != other.year:
+            if self.year > other.year:
+                return 1
+            return -1
+
+        # We must take the work letter into account
+        if self.work_letter != other.work_letter:
+            if self.work_letter > other.work_letter:
+                return 1
+            return -1
+
+        # If any unknown additions are present, try to guess at those.
+        if self.other != other.other:
+            # TODO: Try to guess numbers vs words and such
+            if self.other > other.other:
+                return 1
+            return -1
+
+        # Copy is always evaluated last
+        if self.copy != other.copy:
+            if self.copy > other.copy:
+                return 1
+            return -1
+
+        return 0  # All else fails, we must be equal.
 
 
 def compare_codes(code1="", op="", code2=""):

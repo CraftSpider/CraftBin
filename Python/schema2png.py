@@ -3,7 +3,7 @@ import PIL.Image as Image
 import PIL.ImageDraw as ImageDraw
 import PIL.ImageColor as Color
 import sys
-import utils.argparser as argparse
+import spidertools.common.parsers as argparse
 import minecraft.state as state
 import minecraft.blockstate as blockstate
 import minecraft.enums as enums
@@ -48,9 +48,10 @@ IMAGE_BOUNDARY = 3
 LAYER_BOUNDARY = 2
 
 
-def get_texture(schematic, x, y, z):
-    namespace, block, data = schematic.get_block(x, y, z)
+def get_texture(x, y, z):
     config = state.get_config()
+    namespace, block, data = config.schematic.get_block(x, y, z)
+
     if data == -1:
         return Image.open(config.resource_path / f"{block}.png")
 
@@ -60,6 +61,7 @@ def get_texture(schematic, x, y, z):
         raise schema.SchematicError(f"Invalid block {namespace}:{block} with data {data}") from None
 
     # Parse get model from blockstate
+    side = enums.Side.UP
     if b_state.is_variant():
         variant = b_state.get_variant(normal=None)
         if variant is None:
@@ -75,7 +77,7 @@ def get_texture(schematic, x, y, z):
                     variant = b_state.get_variant(axis="none")
             else:
                 variant = b_state.variants[next(iter(b_state.variants))]
-        img = variant.get_side(enums.Side.UP)
+        img = variant.get_side(side)
         if img is None:
             img = variant.get_sprite()
         if img is not None:
@@ -86,12 +88,11 @@ def get_texture(schematic, x, y, z):
         # Generate list of pieces with heights
         pieces = []
         for part in parts:
-            if part.check_condition(schema=schematic, x=x, y=y, z=z):
+            if part.check_condition(x=x, y=y, z=z):
                 variant = part.get_variant()
-                temp = variant.get_side(enums.Side.UP)
+                temp = variant.get_side(side)
                 if temp is not None:
-                    # TODO: make sure it pastes in the right order and doesn't overwrite other parts
-                    pieces.append((variant.get_side_height(enums.Side.UP), temp))
+                    pieces.append((variant.get_side_height(side), temp))
 
         # Generate output in order of height
         out = Image.new("RGBA", (config.block_size, config.block_size), BASE_COLOR)
@@ -117,16 +118,16 @@ def draw_grid(img):
             draw.rectangle((x, y, x + config.ef_size, y + config.ef_size), outline=BORDER_COLOR)
 
 
-def generate_grid(schematic):
+def generate_grid():
     print("Generating blueprint grid")
     config = state.get_config()
 
     # Calculate image sizes
-    layer_width = config.ef_size * schematic.width
-    layer_length = config.ef_size * schematic.length
+    layer_width = config.ef_size * config.schematic.width
+    layer_length = config.ef_size * config.schematic.length
 
-    num_rows = ((schematic.height - 1) // LINE_SIZE) + 1
-    num_columns = schematic.height if num_rows == 1 else LINE_SIZE
+    num_rows = ((config.schematic.height - 1) // LINE_SIZE) + 1
+    num_columns = config.schematic.height if num_rows == 1 else LINE_SIZE
 
     img_width = (2 * IMAGE_BOUNDARY * config.ef_size) +\
                 (num_columns * layer_width) +\
@@ -144,27 +145,27 @@ def generate_grid(schematic):
     return img
 
 
-def generate_blueprint(schematic):
+def generate_blueprint():
     print("Generating blueprint")
     config = state.get_config()
 
-    img = generate_grid(schematic)
+    img = generate_grid()
 
-    for h in range(schematic.height):
+    for h in range(config.schematic.height):
         print(f"Placing layer {h+1}")
         base_x = (IMAGE_BOUNDARY * config.ef_size) +\
-                 (schematic.width * config.ef_size * (h % LINE_SIZE)) +\
+                 (config.schematic.width * config.ef_size * (h % LINE_SIZE)) +\
                  (LAYER_BOUNDARY * config.ef_size * (h % LINE_SIZE))
 
         base_y = (IMAGE_BOUNDARY * config.ef_size) +\
-                 (schematic.height * config.ef_size * (h // LINE_SIZE)) +\
+                 (config.schematic.height * config.ef_size * (h // LINE_SIZE)) +\
                  (LAYER_BOUNDARY * config.ef_size * (h // LINE_SIZE))
 
-        for z in range(schematic.length):
-            for x in range(schematic.width):
+        for z in range(config.schematic.length):
+            for x in range(config.schematic.width):
 
                 # Get block at position
-                texture = get_texture(schematic, x, h, z)
+                texture = get_texture(x, h, z)
 
                 # Paste texture
                 mask = None
@@ -177,21 +178,22 @@ def generate_blueprint(schematic):
     return img
 
 
-def generate_key(schematic):
+def generate_key():
     print("Generating key")
 
     # TODO: Generate names
 
 
-def generate_count(schematic):
+def generate_count():
     print("Generating count")
+    config = state.get_config()
 
     counts = {}
 
-    for x in range(schematic.width):
-        for y in range(schematic.height):
-            for z in range(schematic.length):
-                namespace, block, data = schematic.get_block(x, y, z)
+    for x in range(config.schematic.width):
+        for y in range(config.schematic.height):
+            for z in range(config.schematic.length):
+                namespace, block, data = config.schematic.get_block(x, y, z)
                 key = f"{namespace}:{block}"
                 if key not in counts:
                     counts[key] = 0
@@ -204,7 +206,7 @@ def generate_count(schematic):
     # TODO: Place blocks and names plus counts
 
 
-def create_image(schematic, parser):
+def create_image(parser):
     print("Creating blueprint")
 
     no_print = parser.has_flag(long="no-blueprint")
@@ -217,11 +219,11 @@ def create_image(schematic, parser):
     key = None
     count = None
     if not no_print:
-        blueprint = generate_blueprint(schematic)
+        blueprint = generate_blueprint()
     if do_key:
-        key = generate_key(schematic)
+        key = generate_key()
     if do_count:
-        count = generate_count(schematic)
+        count = generate_count()
 
     # TODO: combine_images(blueprint, key, count)
 
@@ -265,9 +267,11 @@ def main():
         print("Input file not found")
         return 1
     config = state.get_config()
+
+    config.schematic = schematic
     schematic.load_datamap(config.resource_path / "datamap.json")
 
-    img = create_image(schematic, parser)
+    img = create_image(parser)
     img.save(parser.get_arg(1, None) or "blueprint.png")
 
 
