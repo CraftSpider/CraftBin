@@ -17,7 +17,7 @@ class Rotation:
 
     def __init__(self, data):
         self.origin = math.Vector(*data["origin"])
-        self.axis = getattr(math, f"Unit{data['axis'].upper()}")
+        self.axis = getattr(math.Vector3, f"UNIT_{data['axis'].upper()}")
         self.angle = data["angle"]
         self.rescale = data.get("rescale", False)
 
@@ -204,11 +204,11 @@ class Model:
 
 
 def _resolve_side_rotation(side, x, y, z):
-    rot = math.Rotator(x, y, z)
+    quat = math.Quaternion.from_angles(x, y, z)
     vecs = math.rect_list(math.Vector(-1, 1, -1), math.Vector(1, -1, 1))
 
     for i in range(len(vecs)):
-        vecs[i] = rot * vecs[i]
+        vecs[i] = vecs[i] * quat
 
     axis = side.axis[-1]
     invert = side.axis[0] == "-"

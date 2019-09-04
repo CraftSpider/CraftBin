@@ -3,11 +3,12 @@
 
 *.pyc
 *.pyo
-__pycache__
+__pycache__/
 
 # Pycharm project
-*/.idea/
+*.idea/
 
 # Data Files
 *.dat
 *.dump
+**/data/
