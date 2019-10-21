@@ -108,7 +108,7 @@ class Interpreter(commands.GroupMixin):
             self.dispatch("after_command", name)
 
     def process_filters(self, ctx, *output, **kwargs):
-        self.print(ctx.qualname)
+        # self.print(ctx.qualname)
         return True  # TODO
 
     # Default handlers:

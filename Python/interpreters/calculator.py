@@ -7,7 +7,6 @@
 
 import utils.interp as interp
 
-from utils.stack import *
 from calc.loader import *
 
 variables = {
@@ -97,6 +96,17 @@ def set_var(line):
     return word, line[i+1:]
 
 
+def execute_one(vals, ops):
+    op = ops.pop()
+    FUNCTIONS[op](vals)
+
+
+def execute_all(vals, ops):
+    while ops:
+        execute_one(vals, ops)
+    return vals[0] if vals else None
+
+
 def execute(orders):
     """
         Given a list of valid orders, will execute them and return the result.
@@ -108,40 +118,26 @@ def execute(orders):
         raise TypeError("invalid input, expected list got string")
     if len(orders) == 0:
         return None
-    numbers = create_stack()
-    functions = create_stack()
+    numbers = []
+    functions = []
 
     for item in orders:
         if FUNCTIONS.get(item):
-            try:
-                top_func = functions.top()
+            while len(functions):
+                top_func = functions[-1]
                 if order_of_ops[top_func] > order_of_ops[item] and top_func != '(':
-                    FUNCTIONS[top_func](numbers)
-                functions.push(item)
-            except IndexError:
-                functions.push(item)
+                    execute_one(numbers, functions)
+                else:
+                    break
+            functions.append(item)
         elif item == ")":
-            try:
-                while functions.top() != "(":
-                    calc_func = functions.pop()
-                    FUNCTIONS[calc_func](numbers)
-                functions.pop()
-            except IndexError:
-                pass
+            while functions[-1] != "(":
+                execute_one(numbers, functions)
+            functions.pop()
         else:
-            numbers.push(item)
+            numbers.append(item)
 
-    try:
-        while functions.top():
-            calc_func = functions.pop()
-            if calc_func == '(':
-                continue
-            FUNCTIONS[calc_func](numbers)
-    except IndexError:
-        try:
-            return numbers.top()
-        except IndexError:
-            return None
+    return execute_all(numbers, functions)
 
 
 def verify_round(num):
@@ -201,13 +197,10 @@ def parse_word(word):
 
 
 def parse_line(line):
+    line += " "
     out = []
     word = ""
-    for index in range(len(line) + 1):
-        if index < len(line):
-            char = line[index]
-        else:
-            char = " "
+    for char in line:
         word += char
 
         if word in FUNCTIONS:
