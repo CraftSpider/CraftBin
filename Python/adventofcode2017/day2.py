@@ -27,3 +27,14 @@ out = 0
 for row in graph:
     out += max(row) - min(row)
 print(out)
+
+out = 0
+for row in graph:
+    for index, num in enumerate(row):
+        for index2, num2 in enumerate(row):
+            if index == index2:
+                continue
+            if num % num2 == 0:
+                out += num // num2
+                break
+print(out)
